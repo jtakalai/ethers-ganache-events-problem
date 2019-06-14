@@ -28,11 +28,14 @@ const ganacheBlockDelay = process.env.DELAY || "0"
 const sleep = ms => new Promise(resolve => { setTimeout(resolve, ms) })
 
 startGanache(8456, log).then(async ganache => {
+
+    // subscribe using ethers.js
     const provider = new JsonRpcProvider(ganache.httpUrl)
     provider.on({ topics: [utils.id("TestEvent(string)")] }, async event => {
         console.log(`Ethers.js got event ${JSON.stringify(event)}`)
     })
 
+    // subscribe using web3.js
     const web3 = new Web3(ganache.url)
     const sub = web3.eth.subscribe("logs", {
         topics: [utils.id("TestEvent(string)")]
@@ -44,6 +47,7 @@ startGanache(8456, log).then(async ganache => {
         }
     })
 
+    // deploy contract and then send a function call (expect to see two events)
     const wallet = new Wallet(key, provider)
     const deployer = new ContractFactory(abi, bytecode, wallet)
     const contract = await deployer.deploy()
@@ -52,6 +56,7 @@ startGanache(8456, log).then(async ganache => {
     const tr = await contract.fun()
     console.log(`Function call: ${JSON.stringify(tr)}`)
 
+    // give it ample time to complete, then shut down
     await sleep(+ganacheBlockDelay * 1500 + 1000)
     await sub.unsubscribe()
     ganache.shutdown()
